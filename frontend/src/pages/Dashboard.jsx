@@ -1,6 +1,6 @@
 const stats = [
   { label: "Today bookings", value: "14", detail: "3 pending" },
-  { label: "Revenue", value: "$2.4k", detail: "+12% this week" },
+  { label: "Revenue", value: "₹2.4k", detail: "+12% this week" },
   { label: "Clients", value: "128", detail: "18 new" },
   { label: "Services", value: "9", detail: "Hair + skin" },
 ];

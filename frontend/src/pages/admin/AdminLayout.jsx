@@ -1,4 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import Chatbot from "../../components/Chatbot";
+import AdminAiBar from "../../components/AdminAiBar";
 
 const links = [
   { to: "/admin/dashboard", label: "Dashboard" },
@@ -6,6 +8,9 @@ const links = [
   { to: "/admin/services", label: "Services" },
   { to: "/admin/slots", label: "Slots" },
   { to: "/admin/appointments", label: "Appointments" },
+  { to: "/admin/bookings", label: "Bookings" },
+  { to: "/admin/ai-insights", label: "AI Insights" },
+  { to: "/admin/marketing-dashboard", label: "Marketing" },
 ];
 
 function AdminLayout() {
@@ -51,8 +56,11 @@ function AdminLayout() {
           <div className="topbar-pill">Live salon operations</div>
         </header>
 
+        <AdminAiBar />
+
         <Outlet />
       </main>
+      <Chatbot />
     </div>
   );
 }

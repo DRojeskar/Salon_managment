@@ -34,8 +34,10 @@ export const deleteAppointment = (id) => API.delete(`/appointments/${id}`);
 
 export const getBookings = () => API.get("/bookings");
 export const createBooking = (data) => API.post("/bookings", data);
+export const updateBooking = (id, data) => API.put(`/bookings/${id}`, data);
 export const deleteBooking = (id) => API.delete(`/bookings/${id}`);
 
 export const getClients = () => API.get("/clients");
+export const chatWithGlow = (message) => API.post("/ai/chat", { message });
 
 export default API;

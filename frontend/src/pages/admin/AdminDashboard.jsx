@@ -43,7 +43,7 @@ function AdminDashboard() {
     { label: "Staff on duty", value: staff.length.toString(), detail: `${staff.filter((member) => member.status === "Available").length} available` },
     { label: "Today's bookings", value: appointments.length.toString(), detail: `${pendingAppointments} pending` },
     { label: "Open slots", value: openSlots.toString(), detail: "Peak evening" },
-    { label: "Revenue", value: `$${revenue}`, detail: "+12% week" },
+    { label: "Revenue", value: `₹${revenue}`, detail: "+12% week" },
   ];
 
   const chartData = useMemo(() => [

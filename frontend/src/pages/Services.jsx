@@ -1,8 +1,8 @@
 const services = [
-  { title: "Hair Styling", price: "$45", description: "Modern cut, styling, and finishing touch." },
-  { title: "Facial Glow", price: "$35", description: "Glow facial with hydration and massage." },
-  { title: "Nail Art", price: "$25", description: "Trendy nail design with premium finish." },
-  { title: "Bridal Makeup", price: "$90", description: "Signature bridal look for special occasions." },
+  { title: "Hair Styling", price: "₹45", description: "Modern cut, styling, and finishing touch." },
+  { title: "Facial Glow", price: "₹35", description: "Glow facial with hydration and massage." },
+  { title: "Nail Art", price: "₹25", description: "Trendy nail design with premium finish." },
+  { title: "Bridal Makeup", price: "₹90", description: "Signature bridal look for special occasions." },
 ];
 
 function Services() {

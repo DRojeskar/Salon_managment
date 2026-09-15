@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { deleteBooking, getBookings } from "../../api/salonApi";
 
 function CustomerBookings() {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,6 +36,9 @@ function CustomerBookings() {
     <section className="panel-card">
       <div className="panel-header">
         <h4>My bookings</h4>
+        <button className="form-button compact" type="button" onClick={() => navigate("/customer/dashboard")}>
+          Book appointment
+        </button>
       </div>
 
       {loading ? (

@@ -115,7 +115,7 @@ function Services() {
             <div key={service.id} className="card-tile">
               <div className="card-top-row">
                 <h5>{service.title}</h5>
-                <span className="price-tag">${service.price}</span>
+                <span className="price-tag">₹{service.price}</span>
               </div>
               <p>{service.duration} min • {service.category}</p>
               <div className="action-row">

@@ -1,8 +1,10 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import Chatbot from "../../components/Chatbot";
 
 const links = [
   { to: "/customer/dashboard", label: "Dashboard" },
   { to: "/customer/bookings", label: "My Bookings" },
+  { to: "/customer/style-studio", label: "AI Style Studio" },
 ];
 
 function CustomerLayout() {
@@ -50,6 +52,7 @@ function CustomerLayout() {
 
         <Outlet />
       </main>
+      <Chatbot />
     </div>
   );
 }

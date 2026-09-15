@@ -1,22 +1,47 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { createBooking, getBookings, getServices } from "../../api/salonApi";
 
 const emptyForm = {
   client: "",
   service: "",
+  staff: "",
+  source: "normal",
   date: "",
   time: "",
 };
 
 function CustomerDashboard() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+  const handoffBooking = location.state?.booking?.source === "ai_style_studio" ? location.state.booking : {};
   const [services, setServices] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [formData, setFormData] = useState(emptyForm);
+  const [formData, setFormData] = useState({
+    ...emptyForm,
+    client: storedUser?.name || "",
+    ...handoffBooking,
+    time: handoffBooking.source === "ai_style_studio" ? handoffBooking.time || "11:00" : "",
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const booking = location.state?.booking;
+    if (!booking || booking.source !== "ai_style_studio") {
+      setFormData((current) => ({ ...emptyForm, client: storedUser?.name || current.client || "" }));
+      return;
+    }
+    setFormData((current) => ({
+      ...current,
+      ...booking,
+      time: booking.source === "ai_style_studio" ? booking.time || current.time || "11:00" : "",
+    }));
+  }, [location.state]);
 
   const fetchData = async () => {
     try {
@@ -26,10 +51,7 @@ function CustomerDashboard() {
       setServices(nextServices);
       setBookings(bookingsRes.data.bookings || []);
 
-      setFormData((prev) => ({
-        ...prev,
-        service: prev.service || nextServices[0]?.title || "",
-      }));
+      setFormData((prev) => ({ ...prev }));
     } catch (error) {
       console.error("Failed to load customer dashboard data", error);
     } finally {
@@ -49,13 +71,16 @@ function CustomerDashboard() {
     const booking = {
       client: formData.client,
       service: selectedService,
+      staff: formData.staff,
+      source: formData.source || "normal",
       date: `${formData.date} • ${formData.time}`,
       status: "Pending",
     };
 
     try {
       await createBooking(booking);
-      setFormData({ ...emptyForm, service: services[0]?.title || "" });
+      setFormData({ ...emptyForm, client: storedUser?.name || "" });
+      navigate("/customer/dashboard", { replace: true, state: null });
       await fetchData();
     } catch (error) {
       console.error("Failed to create booking", error);
@@ -91,17 +116,23 @@ function CustomerDashboard() {
         <form className="inline-form" onSubmit={handleSubmit}>
           <div className="form-row">
             <input className="form-input" placeholder="Your name" value={formData.client} onChange={(e) => setFormData((prev) => ({ ...prev, client: e.target.value }))} required />
-            <select className="form-input" value={formData.service} onChange={(e) => setFormData((prev) => ({ ...prev, service: e.target.value }))}>
+            <select className="form-input" value={formData.service} onChange={(e) => setFormData((prev) => ({ ...prev, service: e.target.value }))} required>
+              <option value="" disabled>Select a service</option>
               {services.map((service) => (
                 <option key={service.id} value={service.title}>{service.title}</option>
               ))}
             </select>
           </div>
+          {formData.staff && <p className="booking-context">Preferred stylist: <strong>{formData.staff}</strong></p>}
           <div className="form-row">
             <input className="form-input" type="date" value={formData.date} onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))} required />
             <input className="form-input" type="time" value={formData.time} onChange={(e) => setFormData((prev) => ({ ...prev, time: e.target.value }))} required />
           </div>
-          <button className="form-button compact" type="submit">Reserve appointment</button>
+          <button className="form-button compact" type="submit">
+            {formData.source === "ai_style_studio"
+              ? `Pay ₹${Math.round((services.find((service) => service.title === formData.service)?.price || 0) * 0.9).toLocaleString("en-IN")} & confirm`
+              : "Reserve appointment"}
+          </button>
         </form>
       </section>
 
@@ -118,7 +149,7 @@ function CustomerDashboard() {
               <div key={service.id} className="card-tile">
                 <h5>{service.title}</h5>
                 <p>{service.duration} min</p>
-                <span className="price-tag">${service.price}</span>
+                <span className="price-tag">₹{service.price}</span>
               </div>
             ))}
           </div>

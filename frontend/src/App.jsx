@@ -10,10 +10,14 @@ import Staff from "./pages/admin/Staff";
 import Services from "./pages/admin/Services";
 import Slots from "./pages/admin/Slots";
 import Appointments from "./pages/admin/Appointments";
+import AdminBookings from "./pages/admin/Bookings";
+import AiInsights from "./pages/admin/AiInsights";
+import MarketingDashboard from "./pages/admin/MarketingDashboard";
 import CustomerLayout from "./pages/customer/CustomerLayout";
 import CustomerDashboard from "./pages/customer/CustomerDashboard";
 import CustomerBookings from "./pages/customer/CustomerBookings";
 import CreateAdmin from "./pages/CreateAdmin";
+import AiStyleStudio from "./pages/customer/AiStyleStudio";
 
 function getStoredUser() {
   try {
@@ -53,7 +57,9 @@ function PublicRoute({ children }) {
 
 function RootRedirect() {
   const token = localStorage.getItem("token");
-  return token ? <Navigate to="/role-selection" replace /> : <Navigate to="/login" replace />;
+  const role = getUserRole();
+  if (!token) return <Navigate to="/login" replace />;
+  return <Navigate to={role === "admin" ? "/admin/dashboard" : "/customer/dashboard"} replace />;
 }
 
 function App() {
@@ -75,12 +81,16 @@ function App() {
           <Route path="services" element={<Services />} />
           <Route path="slots" element={<Slots />} />
           <Route path="appointments" element={<Appointments />} />
+          <Route path="bookings" element={<AdminBookings />} />
+          <Route path="ai-insights" element={<AiInsights />} />
+          <Route path="marketing-dashboard" element={<MarketingDashboard />} />
         </Route>
 
         <Route path="/customer" element={<ProtectedRoute allowedRoles={["customer"]}><CustomerLayout /></ProtectedRoute>}>
           <Route index element={<Navigate replace to="dashboard" />} />
           <Route path="dashboard" element={<CustomerDashboard />} />
           <Route path="bookings" element={<CustomerBookings />} />
+          <Route path="style-studio" element={<AiStyleStudio />} />
         </Route>
 
         <Route path="*" element={<Navigate replace to="/login" />} />

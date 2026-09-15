@@ -307,6 +307,12 @@ function isMongoUrl(value) {
   return /^mongodb(\+srv)?:\/\//i.test(value || "");
 }
 
+function isJsonDbPath(value) {
+  if (!value) return false;
+  const normalized = value.replace(/\\/g, "/");
+  return normalized.endsWith(".json") || normalized.endsWith("/db.json") || normalized === "db.json";
+}
+
 function resolveDbPath(dbUrl) {
   if (!dbUrl) {
     return path.join(__dirname, "db.json");
@@ -415,9 +421,14 @@ const appointmentSchema = new mongoose.Schema(
 const bookingSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
+    customerId: { type: String, default: "" },
     client: { type: String, required: true },
     service: { type: String, required: true },
+    staff: { type: String, default: "" },
+    source: { type: String, default: "normal" },
     date: { type: String, required: true },
+    amount: { type: Number, default: 0, min: 0 },
+    paymentStatus: { type: String, default: "NotRequired" },
     status: { type: String, default: "Pending" },
   },
   { timestamps: true }
@@ -437,8 +448,9 @@ let connectionPromise = null;
 
 export async function connectDatabase() {
   const dbUrl = process.env.DB_URL || process.env.DB_PATH;
+  const requestedMode = String(process.env.DB_MODE || "").toLowerCase();
 
-  if (!dbUrl || !isMongoUrl(dbUrl)) {
+  if (requestedMode === "json" || !dbUrl || !isMongoUrl(dbUrl) || isJsonDbPath(dbUrl)) {
     dbMode = "json";
     console.log("📁 Using JSON file database");
     return null;

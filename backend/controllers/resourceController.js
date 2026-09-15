@@ -26,6 +26,21 @@ export function create(name, singular = singularName(name)) {
         if (!service || !client || !date) {
           return res.status(400).json({ success: false, message: "Booking requires service, client, and date" });
         }
+
+        const services = await ResourceModel.list("services");
+        const selectedService = services.find((item) => String(item.title).toLowerCase() === String(service).toLowerCase());
+        if (!selectedService || Number(selectedService.price) <= 0) {
+          return res.status(400).json({ success: false, message: "This service is unavailable or has no payable price" });
+        }
+
+        const isAiBooking = req.body.source === "ai_style_studio";
+        req.body = {
+          ...req.body,
+          customerId: req.user?.id || "",
+          source: isAiBooking ? "ai_style_studio" : "normal",
+          amount: isAiBooking ? Math.round(Number(selectedService.price) * 0.9) : 0,
+          paymentStatus: isAiBooking ? "Pending" : "NotRequired",
+        };
       }
 
       const item = await ResourceModel.create(name, req.body);

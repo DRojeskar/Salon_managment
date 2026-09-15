@@ -54,6 +54,7 @@ import slotsRoutes from "./routes/slots.js";
 import appointmentsRoutes from "./routes/appointments.js";
 import bookingsRoutes from "./routes/bookings.js";
 import clientsRoutes from "./routes/clients.js";
+import aiRoutes from "./routes/ai.js";
 import { connectDatabase } from "./db.js";
 
 const app = express();
@@ -87,6 +88,7 @@ app.use("/api/slots", slotsRoutes);
 app.use("/api/appointments", appointmentsRoutes);
 app.use("/api/bookings", bookingsRoutes);
 app.use("/api/clients", clientsRoutes);
+app.use("/api/ai", aiRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "Salon backend is running" });
