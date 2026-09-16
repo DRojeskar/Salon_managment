@@ -286,11 +286,14 @@ function parseBookingTime(message) {
   return `${String(hour).padStart(2, '0')}:${minute}`;
 }
 
-function answerFaq(message, services = [], slots = []) {
+function answerFaq(message, services = [], slots = [], bookings = []) {
   const normalizedMessage = normalizeText(message);
   const service = findServiceInMessage(normalizedMessage, services);
   if (normalizedMessage.includes('feature') || normalizedMessage.includes('features') || normalizedMessage.includes('project me') || normalizedMessage.includes('app me') || normalizedMessage.includes('system me')) {
     return 'Glow Studio app me customer ke liye online service browsing, live price aur duration, available slot check, chatbot booking, My Bookings tracking, booking cancellation, AI Style Studio recommendations aur personalized salon guidance available hai. Admin side par services, staff, slots, appointments, AI insights aur marketing campaigns manage hote hain.';
+  }
+  if (normalizedMessage.includes('try on') || normalizedMessage.includes('try-on') || normalizedMessage.includes('style studio') || normalizedMessage.includes('ai look') || normalizedMessage.includes('hairstyle')) {
+    return 'AI Try-On me apni photo upload karke face shape, skin tone aur undertone select karein. Hair Cut, Hair Color, Beard ya Spa style choose karke preview dekhein, phir Book This Look Now se HD look unlock karein.';
   }
   if (normalizedMessage.includes('how') || normalizedMessage.includes('kaise kaam') || normalizedMessage.includes('use kaise') || normalizedMessage.includes('kya kar sakte')) {
     return 'Aap service ka naam ya price pooch sakte hain, available slot dekh sakte hain, chatbot se booking kar sakte hain, My Bookings me status check/cancel kar sakte hain, aur AI Style Studio se look recommendation le sakte hain.';
@@ -312,6 +315,11 @@ function answerFaq(message, services = [], slots = []) {
     const openSlots = slots.filter((slot) => String(slot.status).toLowerCase() === 'open');
     return openSlots.length ? `${openSlots.length} slots available hain. Best options: ${openSlots.slice(0, 3).map((slot) => `${slot.day} ${slot.time}`).join(', ')}.` : 'Abhi koi open slot nahi mila.';
   }
+  if (normalizedMessage.includes('meri booking') || normalizedMessage.includes('my booking') || normalizedMessage.includes('mera booking') || normalizedMessage.includes('booking status') || normalizedMessage.includes('appointment status') || normalizedMessage.includes('bookings dikha')) {
+    if (!bookings.length) return 'Aapki abhi koi booking nahi mili. Aap service choose karke date aur time ke saath booking kar sakte hain.';
+    const latest = bookings.slice(0, 3).map((booking) => `${booking.service} - ${booking.date} (${booking.status || 'Pending'})`).join('; ');
+    return `Aapki latest bookings: ${latest}. Details ke liye My Bookings page kholiye.`;
+  }
   if (normalizedMessage.includes('cancel') || normalizedMessage.includes('cancellation') || normalizedMessage.includes('refund')) {
     return 'Booking cancel karne ke liye My Bookings page par jaakar Cancel button use karein. Refund policy ke liye salon reception se confirm karein.';
   }
@@ -319,7 +327,7 @@ function answerFaq(message, services = [], slots = []) {
     return 'Salon timings admin ke configured schedule par depend karte hain. Available slots dekhne ke liye “available slots” poochiye.';
   }
   if (normalizedMessage.includes('offer') || normalizedMessage.includes('discount') || normalizedMessage.includes('deal')) {
-    return 'Current offers admin ke marketing campaigns se manage hote hain. Aap “available offers” pooch sakte hain ya reception se latest offer confirm kar sakte hain.';
+    return 'AI Try-On selected looks par 10% OFF available hai. Checkout par advance ya full payment option milega. Baaki current offers admin ke marketing campaigns se manage hote hain.';
   }
   return null;
 }
@@ -328,7 +336,7 @@ export function answerChat({ message, role = 'customer', user, services = [], sl
   const text = normalizeText(message);
   const service = findServiceInMessage(text, services);
 
-  const faq = answerFaq(text, services, slots);
+  const faq = answerFaq(text, services, slots, bookings);
   if (faq && (!text.includes('book') && !text.includes('booking') && !text.includes('appointment'))) {
     return { reply: faq, intent: 'faq' };
   }
@@ -360,6 +368,11 @@ export function answerChat({ message, role = 'customer', user, services = [], sl
 
   const bookingDate = parseBookingDate(text);
   const bookingTime = parseBookingTime(text);
+  if (text.includes('booking') || text.includes('appointment') || text.includes('book')) {
+    if (text.includes('meri') || text.includes('my') || text.includes('status') || text.includes('dikha')) {
+      return { reply: faq || 'My Bookings page par aap apni booking status, date aur payment details dekh sakte hain.', intent: 'my-bookings' };
+    }
+  }
   if (service && bookingDate && bookingTime && (text.includes('book') || text.includes('booking') || text.includes('karna') || text.includes('appointment'))) {
     return {
       reply: `${service.title} ke liye ${bookingDate} at ${bookingTime} ka booking request ready hai.`,
@@ -378,5 +391,5 @@ export function answerChat({ message, role = 'customer', user, services = [], sl
   if (text.includes('thank') || text.includes('thanks') || text.includes('dhanyavad')) {
     return { reply: 'Aapka welcome! Glow Studio me aapki next visit ka wait rahega.', intent: 'thanks' };
   }
-  return { reply: 'Main booking, service price, duration, availability aur recommendations me help kar sakta hoon. Example: “kal 11 baje Beard Trim book karo”.', intent: 'help' };
+  return { reply: 'Main services, price, duration, available slots, meri bookings, booking status, cancellation, offers aur AI Try-On me help kar sakta hoon. Example: “kal 11 baje Beard Trim book karo” ya “meri bookings dikhao”.', intent: 'help' };
 }

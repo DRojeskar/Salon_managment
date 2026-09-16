@@ -1,0 +1,37 @@
+{
+  "hairCuts": [
+    { "id": "french-crop", "name": "French Crop", "bestFor": ["Oval", "Round"], "price": 399, "discountedPrice": 359, "png": "/styles/french-crop.png" },
+    { "id": "textured-quiff", "name": "Textured Quiff", "bestFor": ["Oval", "Square"], "price": 449, "discountedPrice": 404, "png": "/styles/textured-quiff.png" },
+    { "id": "low-fade", "name": "Low Fade", "bestFor": ["Oval", "Heart"], "price": 349, "discountedPrice": 314, "png": "/styles/low-fade.png" },
+    { "id": "mid-fade", "name": "Mid Fade", "bestFor": ["Square", "Diamond"], "price": 349, "discountedPrice": 314, "png": "/styles/mid-fade.png" },
+    { "id": "buzz-cut", "name": "Buzz Cut", "bestFor": ["Square", "Oblong"], "price": 299, "discountedPrice": 269, "png": "/styles/buzz-cut.png" },
+    { "id": "curtain-middle-part", "name": "Curtain Middle Part", "bestFor": ["Oblong", "Heart"], "price": 399, "discountedPrice": 359, "png": "/styles/curtain-middle-part.png" },
+    { "id": "layered-cut", "name": "Layered Cut", "bestFor": ["Oval", "Diamond"], "price": 449, "discountedPrice": 404, "png": "/styles/layered-cut.png" },
+    { "id": "mullet", "name": "Mullet", "bestFor": ["Oval", "Round"], "price": 499, "discountedPrice": 449, "png": "/styles/mullet.png" },
+    { "id": "slick-back", "name": "Slick Back", "bestFor": ["Oval", "Rectangle"], "price": 449, "discountedPrice": 404, "png": "/styles/slick-back.png" },
+    { "id": "side-swept", "name": "Side Swept", "bestFor": ["Round", "Square"], "price": 349, "discountedPrice": 314, "png": "/styles/side-swept.png" },
+    { "id": "crew-cut", "name": "Crew Cut", "bestFor": ["Square", "Triangle"], "price": 299, "discountedPrice": 269, "png": "/styles/crew-cut.png" },
+    { "id": "mohawk-fade", "name": "Mohawk Fade", "bestFor": ["Diamond", "Triangle"], "price": 599, "discountedPrice": 539, "png": "/styles/mohawk-fade.png" }
+  ],
+  "hairColors": [
+    { "id": "burgundy", "name": "Burgundy", "bestFor": ["Warm undertone"], "price": 999, "discountedPrice": 899, "png": "/styles/burgundy.png", "hex": "#800020" },
+    { "id": "ash-blonde", "name": "Ash Blonde", "bestFor": ["Cool undertone"], "price": 1199, "discountedPrice": 1079, "png": "/styles/ash-blonde.png", "hex": "#d5c5b5" },
+    { "id": "chestnut-brown", "name": "Chestnut Brown", "bestFor": ["Warm undertone"], "price": 899, "discountedPrice": 809, "png": "/styles/chestnut-brown.png", "hex": "#954535" },
+    { "id": "jet-black", "name": "Jet Black", "bestFor": ["Neutral undertone"], "price": 799, "discountedPrice": 719, "png": "/styles/jet-black.png", "hex": "#101116" },
+    { "id": "caramel-highlights", "name": "Caramel Highlights", "bestFor": ["Warm undertone"], "price": 1299, "discountedPrice": 1169, "png": "/styles/caramel-highlights.png", "hex": "#c68e53" },
+    { "id": "ombre", "name": "Ombre", "bestFor": ["Neutral undertone"], "price": 1499, "discountedPrice": 1349, "png": "/styles/ombre.png", "hex": "#8a5261" },
+    { "id": "burgundy-red", "name": "Burgundy Red", "bestFor": ["Warm undertone"], "price": 1199, "discountedPrice": 1079, "png": "/styles/burgundy-red.png", "hex": "#9d1638" },
+    { "id": "honey-blonde", "name": "Honey Blonde", "bestFor": ["Warm undertone"], "price": 1299, "discountedPrice": 1169, "png": "/styles/honey-blonde.png", "hex": "#d9a441" },
+    { "id": "silver-grey", "name": "Silver Grey", "bestFor": ["Cool undertone"], "price": 1499, "discountedPrice": 1349, "png": "/styles/silver-grey.png", "hex": "#aeb5c1" }
+  ],
+  "beardStyles": [
+    { "id": "clean-shave", "name": "Clean Shave", "bestFor": ["Oval", "Round"], "price": 149, "discountedPrice": 134, "png": "/styles/clean-shave.png" },
+    { "id": "light-stubble", "name": "Light Stubble", "bestFor": ["Round", "Heart"], "price": 199, "discountedPrice": 179, "png": "/styles/light-stubble.png" },
+    { "id": "heavy-stubble", "name": "Heavy Stubble", "bestFor": ["Square", "Oval"], "price": 249, "discountedPrice": 224, "png": "/styles/heavy-stubble.png" },
+    { "id": "goatee", "name": "Goatee", "bestFor": ["Round", "Diamond"], "price": 199, "discountedPrice": 179, "png": "/styles/goatee.png" },
+    { "id": "full-beard-fade", "name": "Full Beard Fade", "bestFor": ["Square", "Oblong"], "price": 299, "discountedPrice": 269, "png": "/styles/full-beard-fade.png" },
+    { "id": "anchor-beard", "name": "Anchor Beard", "bestFor": ["Oval", "Heart"], "price": 249, "discountedPrice": 224, "png": "/styles/anchor-beard.png" },
+    { "id": "van-dyke", "name": "Van Dyke", "bestFor": ["Diamond", "Oblong"], "price": 249, "discountedPrice": 224, "png": "/styles/van-dyke.png" },
+    { "id": "french-beard", "name": "French Beard", "bestFor": ["Oval", "Square"], "price": 299, "discountedPrice": 269, "png": "/styles/french-beard.png" }
+  ]
+}

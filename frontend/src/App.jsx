@@ -18,6 +18,8 @@ import CustomerDashboard from "./pages/customer/CustomerDashboard";
 import CustomerBookings from "./pages/customer/CustomerBookings";
 import CreateAdmin from "./pages/CreateAdmin";
 import AiStyleStudio from "./pages/customer/AiStyleStudio";
+import AITryOn from "./components/AITryOn";
+import Checkout from "./pages/Checkout";
 
 function getStoredUser() {
   try {
@@ -74,6 +76,14 @@ function App() {
 
         <Route path="/role-selection" element={<ProtectedRoute><RoleSelection /></ProtectedRoute>} />
 
+        <Route path="/my-bookings" element={<ProtectedRoute allowedRoles={["customer"]}><CustomerLayout /></ProtectedRoute>}>
+          <Route index element={<CustomerBookings />} />
+        </Route>
+
+        <Route path="/checkout" element={<ProtectedRoute allowedRoles={["customer"]}><CustomerLayout /></ProtectedRoute>}>
+          <Route index element={<Checkout />} />
+        </Route>
+
         <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><AdminLayout /></ProtectedRoute>}>
           <Route index element={<Navigate replace to="dashboard" />} />
           <Route path="dashboard" element={<AdminDashboard />} />
@@ -91,6 +101,7 @@ function App() {
           <Route path="dashboard" element={<CustomerDashboard />} />
           <Route path="bookings" element={<CustomerBookings />} />
           <Route path="style-studio" element={<AiStyleStudio />} />
+          <Route path="ai-try-on" element={<AITryOn />} />
         </Route>
 
         <Route path="*" element={<Navigate replace to="/login" />} />

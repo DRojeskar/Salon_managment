@@ -424,8 +424,20 @@ const bookingSchema = new mongoose.Schema(
     customerId: { type: String, default: "" },
     client: { type: String, required: true },
     service: { type: String, required: true },
+    serviceId: { type: String, default: "" },
+    displayName: { type: String, default: "" },
     staff: { type: String, default: "" },
     source: { type: String, default: "normal" },
+    price: { type: Number, default: 0, min: 0 },
+    finalPrice: { type: Number, default: 0, min: 0 },
+    originalPrice: { type: Number, default: 0, min: 0 },
+    isPayable: { type: Boolean, default: false },
+    leadTag: { type: String, default: "" },
+    match: { type: String, default: "" },
+    faceShape: { type: String, default: "" },
+    skinTone: { type: String, default: "" },
+    clientPhoto: { type: String, default: "" },
+    clientPhotoExpiresAt: { type: Date, default: null },
     date: { type: String, required: true },
     amount: { type: Number, default: 0, min: 0 },
     paymentStatus: { type: String, default: "NotRequired" },
@@ -504,7 +516,17 @@ export async function getCollection(name) {
 
     try {
       const docs = await Model.find().lean();
-      return docs.map((doc) => toPlainObject(doc));
+      const plainDocs = docs.map((doc) => toPlainObject(doc));
+      if (name !== "bookings") return plainDocs;
+
+      // Expired photos ko read ke waqt bhi remove karte hain, restart ke baad bhi privacy bani rahe.
+      const now = Date.now();
+      await Promise.all(plainDocs.filter((item) => item.clientPhoto && item.clientPhotoExpiresAt && new Date(item.clientPhotoExpiresAt).getTime() <= now).map((item) => Model.updateOne({ id: item.id }, { $unset: { clientPhoto: "", clientPhotoExpiresAt: "" } })));
+      return plainDocs.map((item) => {
+        if (!item.clientPhotoExpiresAt || new Date(item.clientPhotoExpiresAt).getTime() > now) return item;
+        const { clientPhoto, clientPhotoExpiresAt, ...safeItem } = item;
+        return safeItem;
+      });
     } catch (error) {
       console.error(`Error fetching ${name} from MongoDB:`, error.message);
       return [];
@@ -512,7 +534,22 @@ export async function getCollection(name) {
   }
 
   const db = await readDb();
-  return db[name] || [];
+  const collection = db[name] || [];
+  if (name !== "bookings") return collection;
+
+  const now = Date.now();
+  let changed = false;
+  const safeCollection = collection.map((item) => {
+    if (!item.clientPhoto || !item.clientPhotoExpiresAt || new Date(item.clientPhotoExpiresAt).getTime() > now) return item;
+    changed = true;
+    const { clientPhoto, clientPhotoExpiresAt, ...safeItem } = item;
+    return safeItem;
+  });
+  if (changed) {
+    db[name] = safeCollection;
+    await writeDb(db);
+  }
+  return safeCollection;
 }
 
 export async function findById(name, id) {

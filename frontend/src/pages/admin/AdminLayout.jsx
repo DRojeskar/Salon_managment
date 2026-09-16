@@ -1,6 +1,4 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import Chatbot from "../../components/Chatbot";
-import AdminAiBar from "../../components/AdminAiBar";
 
 const links = [
   { to: "/admin/dashboard", label: "Dashboard" },
@@ -44,7 +42,6 @@ function AdminLayout() {
           </nav>
         </div>
 
-        <button className="logout-btn" onClick={handleLogout}>Logout</button>
       </aside>
 
       <main className="main-content">
@@ -53,14 +50,11 @@ function AdminLayout() {
             <p className="eyebrow">Salon management</p>
             <h2>Admin control center</h2>
           </div>
-          <div className="topbar-pill">Live salon operations</div>
+          <div className="topbar-actions"><div className="topbar-pill">Live salon operations</div><button className="header-logout-btn" onClick={handleLogout}>Logout</button></div>
         </header>
-
-        <AdminAiBar />
 
         <Outlet />
       </main>
-      <Chatbot />
     </div>
   );
 }

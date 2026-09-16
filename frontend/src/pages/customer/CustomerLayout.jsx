@@ -3,8 +3,9 @@ import Chatbot from "../../components/Chatbot";
 
 const links = [
   { to: "/customer/dashboard", label: "Dashboard" },
-  { to: "/customer/bookings", label: "My Bookings" },
+  { to: "/my-bookings", label: "My Bookings" },
   { to: "/customer/style-studio", label: "AI Style Studio" },
+  { to: "/customer/ai-try-on", label: "AI Try-On" },
 ];
 
 function CustomerLayout() {
@@ -38,7 +39,6 @@ function CustomerLayout() {
           </nav>
         </div>
 
-        <button className="logout-btn" onClick={handleLogout}>Logout</button>
       </aside>
 
       <main className="main-content">
@@ -47,7 +47,7 @@ function CustomerLayout() {
             <p className="eyebrow">Customer</p>
             <h2>Book your perfect salon visit</h2>
           </div>
-          <div className="topbar-pill">Easy appointments</div>
+          <div className="topbar-actions"><div className="topbar-pill">Easy appointments</div><button className="header-logout-btn" onClick={handleLogout}>Logout</button></div>
         </header>
 
         <Outlet />

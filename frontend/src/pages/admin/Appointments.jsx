@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createAppointment, deleteAppointment, getAppointments, getStaff, getServices, updateAppointment } from "../../api/salonApi";
+import { formatTime } from "../../utils/timeFormat";
 
 const emptyForm = {
   client: "",
@@ -136,7 +137,7 @@ function Appointments() {
                 <p>{item.service}</p>
               </div>
               <div className="list-meta">
-                <span>{item.time}</span>
+                <span>{formatTime(item.time)}</span>
                 <small>{item.staff}</small>
                 <span className="status-pill">{item.status}</span>
               </div>

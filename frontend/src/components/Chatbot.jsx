@@ -5,7 +5,7 @@ function Chatbot() {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "Namaste! Main Glow AI hoon. Booking, price, duration ya recommendation poochiye." },
+    { role: "assistant", text: "Namaste! Main Glow AI hoon. Services, price, slots, bookings, offers ya AI Try-On ke baare mein poochiye." },
   ]);
   const [sending, setSending] = useState(false);
 
@@ -45,6 +45,9 @@ function Chatbot() {
               </div>
             ))}
             {sending && <div className="glow-chat-message assistant">Glow AI is thinking...</div>}
+          </div>
+          <div className="glow-chat-suggestions">
+            {["Available services batao", "Meri bookings dikhao", "Aaj ke slots?", "AI Try-On kaise karein?"].map((prompt) => <button key={prompt} type="button" onClick={() => setMessage(prompt)}>{prompt}</button>)}
           </div>
           <form className="glow-chat-form" onSubmit={sendMessage}>
             <input value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Try: kal 11 baje Beard Trim book karo" aria-label="Message Glow AI" />

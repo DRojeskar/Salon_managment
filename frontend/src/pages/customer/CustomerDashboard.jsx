@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createBooking, getBookings, getServices } from "../../api/salonApi";
+import { formatBookingDate } from "../../utils/timeFormat";
 
 const emptyForm = {
   client: "",
@@ -20,7 +21,6 @@ function CustomerDashboard() {
   const [bookings, setBookings] = useState([]);
   const [formData, setFormData] = useState({
     ...emptyForm,
-    client: storedUser?.name || "",
     ...handoffBooking,
     time: handoffBooking.source === "ai_style_studio" ? handoffBooking.time || "11:00" : "",
   });
@@ -33,7 +33,7 @@ function CustomerDashboard() {
   useEffect(() => {
     const booking = location.state?.booking;
     if (!booking || booking.source !== "ai_style_studio") {
-      setFormData((current) => ({ ...emptyForm, client: storedUser?.name || current.client || "" }));
+      setFormData(emptyForm);
       return;
     }
     setFormData((current) => ({
@@ -51,7 +51,6 @@ function CustomerDashboard() {
       setServices(nextServices);
       setBookings(bookingsRes.data.bookings || []);
 
-      setFormData((prev) => ({ ...prev }));
     } catch (error) {
       console.error("Failed to load customer dashboard data", error);
     } finally {
@@ -79,7 +78,7 @@ function CustomerDashboard() {
 
     try {
       await createBooking(booking);
-      setFormData({ ...emptyForm, client: storedUser?.name || "" });
+      setFormData(emptyForm);
       navigate("/customer/dashboard", { replace: true, state: null });
       await fetchData();
     } catch (error) {
@@ -113,9 +112,9 @@ function CustomerDashboard() {
           <h4>Book a service</h4>
         </div>
 
-        <form className="inline-form" onSubmit={handleSubmit}>
+        <form className="inline-form" autoComplete="off" onSubmit={handleSubmit}>
           <div className="form-row">
-            <input className="form-input" placeholder="Your name" value={formData.client} onChange={(e) => setFormData((prev) => ({ ...prev, client: e.target.value }))} required />
+            <input className="form-input" name="booking-client" autoComplete="off" placeholder="Your name" value={formData.client} onChange={(e) => setFormData((prev) => ({ ...prev, client: e.target.value }))} required />
             <select className="form-input" value={formData.service} onChange={(e) => setFormData((prev) => ({ ...prev, service: e.target.value }))} required>
               <option value="" disabled>Select a service</option>
               {services.map((service) => (
@@ -186,7 +185,7 @@ function CustomerDashboard() {
               <div key={item.id} className="list-item">
                 <div>
                   <strong>{item.service}</strong>
-                  <p>{item.date}</p>
+                  <p>{formatBookingDate(item.date)}</p>
                 </div>
                 <span className="status-pill">{item.status}</span>
               </div>

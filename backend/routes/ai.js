@@ -19,7 +19,10 @@ router.post('/chat', authenticateToken, async (req, res) => {
     const [services, slots, bookings, appointments, staff] = await Promise.all([
       getCollection('services'), getCollection('slots'), getCollection('bookings'), getCollection('appointments'), getCollection('staff'),
     ]);
-    const result = answerChat({ message, role: req.user?.role, user: req.user, services, slots, bookings, appointments, staff });
+    const visibleBookings = req.user?.role === 'admin'
+      ? bookings
+      : bookings.filter((booking) => booking.customerId === req.user?.id || (!booking.customerId && booking.client === req.user?.name));
+    const result = answerChat({ message, role: req.user?.role, user: req.user, services, slots, bookings: visibleBookings, appointments, staff });
     if (result.booking && req.user?.role === 'customer') {
       result.booking = await createItem('bookings', result.booking);
       result.reply = `${result.booking.service} ka booking successfully create ho gaya: ${result.booking.date}. Status Pending hai.`;
