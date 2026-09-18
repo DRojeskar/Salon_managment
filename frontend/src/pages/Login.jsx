@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUser } from "../api/authApi";
+import { applyAuthSession } from "../utils/authSession";
+import { fetchSalonsFromApi } from "../utils/salonData";
+import { useToast } from "../context/ToastContext";
 
 function Login() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -27,13 +31,18 @@ function Login() {
         const user = response.data.user;
         const role = user?.role || "customer";
         localStorage.setItem("token", response.data.token);
-        localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("role", role);
-        navigate(role === "admin" ? "/admin/dashboard" : "/customer/dashboard");
+        applyAuthSession({
+          user,
+          salons: response.data.salons,
+          activeSalonId: response.data.activeSalonId,
+        });
+        await fetchSalonsFromApi();
+        showToast(`Welcome back, ${user.name}!`);
+        navigate(role === "admin" || role === "superadmin" ? "/admin/dashboard" : "/customer/dashboard");
       }
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Login failed");
+      showToast(error.response?.data?.message || "Login failed", "error");
     }
   };
 

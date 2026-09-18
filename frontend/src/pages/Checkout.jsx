@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { createBooking, updateBooking } from "../api/salonApi";
+import { getActiveSalon } from "../utils/salonData";
+import { useToast } from "../context/ToastContext";
 
 const defaultTryOn = {
   style: "Mullet",
@@ -19,6 +22,7 @@ function getTryOnBooking() {
 }
 
 function Checkout() {
+  const { showToast } = useToast();
   const [booking] = useState(() => getTryOnBooking());
   const [name, setName] = useState("Test User");
   const [phone, setPhone] = useState("9999999999");
@@ -44,15 +48,20 @@ function Checkout() {
       name: "Glow Studio",
       description,
       image: "/logo.png",
-      handler(response) {
+      handler: async (response) => {
         console.log("Payment ID", response.razorpay_payment_id);
+        const salon = getActiveSalon();
         const confirmedBooking = {
-          id: Date.now(),
+          ...booking,
+          id: booking.id || Date.now(),
           style: styleName,
+          service: styleName,
           price: fullPrice,
+          finalPrice: fullPrice,
           advance: amount === advance ? advance : fullPrice,
           paymentId: response.razorpay_payment_id,
-          status: amount === advance ? "Advance Paid ₹49 - HD UNLOCKED" : "Paid ₹449 - HD UNLOCKED",
+          status: "Confirmed",
+          paymentStatus: "Paid",
           date: booking.date || "Tomorrow",
           time: booking.time || "",
           createdAt: booking.createdAt || new Date().toISOString(),
@@ -62,13 +71,30 @@ function Checkout() {
           userPhoto: booking.userPhoto || "",
           styleImage: booking.styleImage || "",
           hdUnlocked: true,
+          source: "AI Try-On",
+          leadTag: "AI Try-On Lead",
           tag: "AI Try-On",
           match: "95%",
           remaining: amount === advance ? remaining : 0,
           displayStyle: booking.displayStyle || `${styleName} (AI - Oval, Warm)`,
+          salonId: salon?.id || booking.salonId,
+          salonName: salon?.name || booking.salonName,
         };
+
+        try {
+          if (booking.id) {
+            await updateBooking(booking.id, confirmedBooking);
+          } else {
+            await createBooking({ ...confirmedBooking, paymentStatus: "Paid" });
+          }
+        } catch (error) {
+          console.error("Failed to sync paid booking", error);
+          showToast("Payment done, but server sync failed. Admin se confirm karwa lein.", "error");
+        }
+
         localStorage.setItem("glow_last_tryon_booking", JSON.stringify(confirmedBooking));
         localStorage.setItem("glow_payment_id", response.razorpay_payment_id);
+        showToast("Payment successful! Booking confirmed.");
         window.location.href = "/my-bookings?payment=success";
       },
       prefill: { name, contact: phone, email: "test@test.com" },

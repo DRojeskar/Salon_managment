@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../api/authApi";
+import { applyAuthSession } from "../utils/authSession";
+import { fetchSalonsFromApi } from "../utils/salonData";
+import { useToast } from "../context/ToastContext";
 
 function Register() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -28,15 +32,15 @@ function Register() {
 
       if (response.data.success) {
         const user = response.data.user;
-        const role = user?.role || "customer";
         localStorage.setItem("token", response.data.token);
-        localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("role", role);
+        applyAuthSession({ user, salons: response.data.salons, activeSalonId: response.data.activeSalonId });
+        await fetchSalonsFromApi();
+        showToast("Account created successfully.");
         navigate("/role-selection");
       }
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Registration failed");
+      showToast(error.response?.data?.message || "Registration failed", "error");
     }
   };
 

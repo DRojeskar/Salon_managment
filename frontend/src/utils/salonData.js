@@ -1,3 +1,5 @@
+import { createSalon, getSalons, setActiveSalon as setActiveSalonApi } from "../api/salonApi";
+
 export const defaultStaff = [
   { id: 1, name: "Nadia", role: "Senior stylist", shift: "Morning", status: "Available" },
   { id: 2, name: "Sara", role: "Facialist", shift: "Afternoon", status: "On call" },
@@ -30,6 +32,17 @@ export const defaultCustomerBookings = [
   { id: 3, service: "Nail Art", date: "Aug 12, 5:00 PM", status: "Confirmed" },
 ];
 
+export const defaultSalonProfile = {
+  id: "default-salon",
+  name: "Glow Studio",
+  phone: "+91 98765 43210",
+  address: "MG Road, Jaipur",
+  email: "hello@glowstudio.com",
+  openTime: "09:00",
+  closeTime: "21:00",
+  createdAt: new Date().toISOString(),
+};
+
 export function readStorageList(key, fallback) {
   if (typeof window === "undefined") return fallback;
 
@@ -48,4 +61,87 @@ export function writeStorageList(key, value) {
 
 export function createId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+export function normalizeSalonProfile(input = {}) {
+  const base = { ...defaultSalonProfile, ...input };
+  return {
+    ...base,
+    id: String(base.id || createId()),
+    name: String(base.name || "Glow Studio").trim() || "Glow Studio",
+    phone: String(base.phone || "").trim(),
+    address: String(base.address || "").trim(),
+    email: String(base.email || "").trim(),
+    openTime: String(base.openTime || defaultSalonProfile.openTime),
+    closeTime: String(base.closeTime || defaultSalonProfile.closeTime),
+  };
+}
+
+export function getSalonProfiles() {
+  const stored = readStorageList("glow_salons_cache", []);
+  if (Array.isArray(stored) && stored.length) {
+    return stored.map(normalizeSalonProfile);
+  }
+  return [];
+}
+
+export async function fetchSalonsFromApi() {
+  const response = await getSalons();
+  const salons = (response.data.salons || []).map(normalizeSalonProfile);
+  writeStorageList("glow_salons_cache", salons);
+  return { salons, scope: response.data.scope || "" };
+}
+
+export async function createSalonProfile(input = {}) {
+  const response = await createSalon({
+    name: input.name,
+    phone: input.phone,
+    address: input.address,
+    openTime: input.openTime,
+    closeTime: input.closeTime,
+    email: input.email,
+  });
+
+  const salon = normalizeSalonProfile(response.data.salon || input);
+  await fetchSalonsFromApi();
+
+  if (response.data.activeSalonId) {
+    localStorage.setItem("glow_active_salon_id", String(response.data.activeSalonId));
+  }
+
+  return salon;
+}
+
+export function getSalonById(id) {
+  return getSalonProfiles().find((salon) => String(salon.id) === String(id)) || getSalonProfiles()[0];
+}
+
+export function getActiveSalonId() {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem("glow_active_salon_id") || getSalonProfiles()[0]?.id || "";
+}
+
+export function getActiveSalon() {
+  const salons = getSalonProfiles();
+  const active = getActiveSalonId();
+  return salons.find((salon) => String(salon.id) === String(active)) || salons[0] || null;
+}
+
+export async function setActiveSalon(id) {
+  if (typeof window === "undefined") return null;
+
+  const salonId = String(id);
+  localStorage.setItem("glow_active_salon_id", salonId);
+
+  try {
+    await setActiveSalonApi(salonId);
+  } catch (error) {
+    console.error("Failed to sync active salon", error);
+  }
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("salon-changed"));
+  }
+
+  return getSalonById(salonId) || getActiveSalon();
 }

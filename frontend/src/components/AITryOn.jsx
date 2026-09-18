@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import salonStyles from "../data/salonStyles.json";
+import { getActiveSalon } from "../utils/salonData";
+import { createBooking, getServices } from "../api/salonApi";
+import { resolveTryOnSalonService } from "../utils/tryOnBooking";
+import { useToast } from "../context/ToastContext";
+import SalonSwitcher from "./SalonSwitcher";
 import { getNextAppointmentSlot } from "../utils/timeFormat";
+import StylePreviewLayer from "./StylePreviewLayer";
+import { loadImageBoundsFromFile, skinTonePhotoFilter } from "../utils/facePreview";
 
 const faceShapes = ["Oval", "Round", "Square", "Heart", "Diamond", "Oblong", "Rectangle", "Triangle", "Pear", "Inverted triangle", "Asymmetrical"];
 const skinTones = ["Fair", "Light", "Medium", "Tan", "Deep", "Dark"];
@@ -18,13 +25,9 @@ const spaStyles = [
   { id: "keratin-gloss", name: "Keratin Gloss", bestFor: ["All"], price: 1299, discountedPrice: 1169, png: "/styles/keratin-gloss.png" },
 ];
 
-// MediaPipe ke bina demo face-mesh fallback: preview ke center mein face bounds use hote hain.
-function detectFaceBounds() {
-  return { left: 25, top: 18, width: 50, height: 58 };
-}
-
 function AITryOn() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [photoUrl, setPhotoUrl] = useState("");
   const [uploadedPhoto, setUploadedPhoto] = useState("");
   const [faceBounds, setFaceBounds] = useState(null);
@@ -33,7 +36,7 @@ function AITryOn() {
   const [undertone, setUndertone] = useState("Warm undertone");
   const [activeTab, setActiveTab] = useState("hairCuts");
   const [selectedStyle, setSelectedStyle] = useState(salonStyles.hairCuts.find((style) => style.id === "slick-back"));
-  const [overlayAvailable, setOverlayAvailable] = useState(true);
+  const [pngOverlayOk, setPngOverlayOk] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(300);
   const [booking, setBooking] = useState(false);
   const [booked, setBooked] = useState(false);
@@ -49,15 +52,27 @@ function AITryOn() {
 
   const allStyles = useMemo(() => (activeTab === "spa" ? spaStyles : salonStyles[activeTab] || []), [activeTab]);
   const recommendedStyles = useMemo(() => {
+    const skinBoost = ["Fair", "Light"].includes(skinTone)
+      ? ["Layered Cut", "Curtain Middle Part", "French Crop"]
+      : ["Tan", "Deep", "Dark"].includes(skinTone)
+        ? ["Low Fade", "Mid Fade", "Slick Back"]
+        : [];
+
     if (activeTab === "hairCuts") {
-      const preferred = faceShape === "Oval" ? ["French Crop", "Textured Quiff", "Low Fade"] : allStyles.filter((style) => style.bestFor.includes(faceShape)).slice(0, 3).map((style) => style.name);
-      return preferred.map((name) => allStyles.find((style) => style.name === name)).filter(Boolean);
+      const preferred = faceShape === "Oval"
+        ? ["French Crop", "Textured Quiff", "Low Fade"]
+        : allStyles.filter((style) => style.bestFor.includes(faceShape)).slice(0, 3).map((style) => style.name);
+      const merged = [...new Set([...preferred, ...skinBoost])].slice(0, 3);
+      return merged.map((name) => allStyles.find((style) => style.name === name)).filter(Boolean);
     }
     if (activeTab === "hairColors" && undertone === "Warm undertone") {
-      return allStyles.filter((style) => ["Burgundy", "Chestnut Brown"].includes(style.name));
+      return allStyles.filter((style) => ["Burgundy", "Chestnut Brown", "Honey Blonde"].includes(style.name));
+    }
+    if (activeTab === "hairColors" && undertone === "Cool undertone") {
+      return allStyles.filter((style) => ["Ash Blonde", "Silver Grey", "Jet Black"].includes(style.name));
     }
     return allStyles.filter((style) => style.bestFor.includes(faceShape) || style.bestFor.includes(undertone)).slice(0, 3);
-  }, [activeTab, allStyles, faceShape, undertone]);
+  }, [activeTab, allStyles, faceShape, undertone, skinTone]);
   const remainingStyles = useMemo(() => allStyles.filter((style) => !recommendedStyles.some((recommended) => recommended.id === style.id)), [allStyles, recommendedStyles]);
   const timerLabel = `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`;
   const discountedPrice = selectedStyle.discountedPrice;
@@ -68,15 +83,25 @@ function AITryOn() {
     transform: "translateX(-50%)",
   } : undefined;
 
-  const handlePhoto = (event) => {
+  const handlePhoto = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    setPhotoUrl(URL.createObjectURL(file));
-    setFaceBounds(detectFaceBounds());
+    const nextUrl = URL.createObjectURL(file);
+    setPhotoUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return nextUrl;
+    });
+    setPngOverlayOk(false);
     setSecondsLeft(300);
     setMessage("");
 
-    // Booking ke liye photo ko memory mein base64 rakho; server par privacy expiry ke saath jayega.
+    try {
+      const bounds = await loadImageBoundsFromFile(file);
+      setFaceBounds(bounds);
+    } catch {
+      setFaceBounds({ left: 22, top: 8, width: 56, height: 58 });
+    }
+
     const reader = new FileReader();
     reader.onload = () => setUploadedPhoto(String(reader.result || ""));
     reader.readAsDataURL(file);
@@ -86,44 +111,97 @@ function AITryOn() {
     const styles = tabId === "spa" ? spaStyles : salonStyles[tabId];
     setActiveTab(tabId);
     setSelectedStyle(styles[0]);
-    setOverlayAvailable(true);
+    setPngOverlayOk(false);
   };
 
   const selectStyle = (style) => {
     setSelectedStyle(style);
-    setOverlayAvailable(true);
+    setPngOverlayOk(false);
   };
 
-  const handleBook = () => {
+  const handleBook = async () => {
     setBooking(true);
     setMessage("");
     const user = JSON.parse(localStorage.getItem("user") || "null");
+    const salon = getActiveSalon();
+    if (!salon?.id) {
+      showToast("Pehle customer dashboard se salon select karein.", "error");
+      setBooking(false);
+      return;
+    }
+
+    localStorage.setItem("glow_active_salon_id", String(salon.id));
+
+    let salonServices = [];
+    try {
+      const servicesResponse = await getServices();
+      salonServices = servicesResponse.data.services || [];
+    } catch (loadError) {
+      console.error(loadError);
+      showToast("Salon services load nahi ho paye. Dubara salon select karke try karein.", "error");
+      setBooking(false);
+      return;
+    }
+
+    const mappedService = resolveTryOnSalonService({
+      activeTab,
+      selectedStyle,
+      services: salonServices,
+    });
+
+    if (!mappedService?.serviceId) {
+      showToast("Is salon par book karne ke liye koi service nahi mili.", "error");
+      setBooking(false);
+      return;
+    }
+
     const appointment = getNextAppointmentSlot();
     const bookingRecord = {
       id: Date.now(),
-      service: "Hair Cut",
-      displayStyle: `${selectedStyle.name} (AI - ${faceShape}, ${undertone.replace(" undertone", "")})`,
+      service: mappedService.service,
+      serviceId: mappedService.serviceId,
+      displayStyle: `${selectedStyle.name} on ${mappedService.service} (AI - ${faceShape}, ${undertone.replace(" undertone", "")})`,
       price: selectedStyle.discountedPrice,
       originalPrice: selectedStyle.price,
+      finalPrice: selectedStyle.discountedPrice,
       stylist: "Aman",
-      date: appointment.date,
+      date: `${appointment.date} • ${appointment.time}`,
       time: appointment.time,
       createdAt: appointment.createdAt,
-      userPhoto: uploadedPhoto,
       styleImage: selectedStyle.png,
       styleName: selectedStyle.name,
-      status: "Confirmed",
-      hdUnlocked: true,
+      status: "Pending",
+      hdUnlocked: false,
       tag: "AI Try-On",
       match: "95%",
       client: user?.name || "Customer",
+      salonId: salon.id,
+      salonName: salon.name,
+      source: "AI Try-On",
+      faceShape,
+      skinTone,
     };
-    localStorage.setItem("glow_last_tryon", JSON.stringify({ ...bookingRecord, style: selectedStyle.name, advance: 49 }));
-    localStorage.setItem("glow_last_tryon_booking", JSON.stringify(bookingRecord));
-    setSecondsLeft(0);
-    setBooked(true);
-    setBooking(false);
-    navigate("/checkout");
+
+    try {
+      const response = await createBooking(bookingRecord);
+      const saved = {
+        ...(response.data.booking || bookingRecord),
+        userPhoto: uploadedPhoto,
+        styleName: selectedStyle.name,
+        style: selectedStyle.name,
+      };
+      localStorage.setItem("glow_last_tryon", JSON.stringify({ ...saved, style: selectedStyle.name, advance: 49 }));
+      localStorage.setItem("glow_last_tryon_booking", JSON.stringify(saved));
+      setSecondsLeft(0);
+      setBooked(true);
+      showToast("AI Try-On booking saved. Admin bookings list me dikhegi.");
+      navigate("/checkout");
+    } catch (error) {
+      console.error(error);
+      showToast(error.response?.data?.message || "Booking save failed", "error");
+    } finally {
+      setBooking(false);
+    }
   };
 
   const renderStyleCard = (style, isRecommended = false) => (
@@ -143,6 +221,7 @@ function AITryOn() {
     <div className="ai-try-on">
       <section className="ai-try-on-header">
         <div>
+          <SalonSwitcher label="Booking salon" />
           <p className="eyebrow">Glow Studio AI</p>
           <h3>Try your next look before you book.</h3>
           <p>Pick a style, preview the vibe, and reserve your salon transformation.</p>
@@ -173,9 +252,40 @@ function AITryOn() {
         <div className="ai-try-on-panel ai-preview-panel">
           <div className="ai-try-on-panel-heading"><span className="ai-try-on-step">03</span><div><h4>HD look preview</h4><p>{selectedStyle.name} on your photo</p></div></div>
           <div className="ai-preview-stage">
-            {photoUrl ? <img className="ai-preview-photo" src={photoUrl} alt="Uploaded customer preview" /> : <div className="ai-empty-preview"><span>✦</span><p>Upload a photo to start your try-on</p></div>}
-            {photoUrl && (overlayAvailable ? <img className="ai-hairstyle-image" style={hairlineStyle} src={selectedStyle.png} alt={`${selectedStyle.name} overlay`} onError={() => setOverlayAvailable(false)} /> : <div className="ai-hairstyle-placeholder" style={hairlineStyle} aria-label={`${selectedStyle.name} overlay placeholder`}>{selectedStyle.name}</div>)}
-            {photoUrl && activeTab === "hairColors" && selectedStyle.hex && <div className="ai-color-overlay" style={{ ...hairlineStyle, backgroundColor: selectedStyle.hex }} aria-label={`${selectedStyle.name} color overlay`} />}
+            {photoUrl ? (
+              <img
+                className="ai-preview-photo"
+                src={photoUrl}
+                alt="Uploaded customer preview"
+                style={{ filter: `blur(6px) ${skinTonePhotoFilter(skinTone)}` }}
+              />
+            ) : (
+              <div className="ai-empty-preview"><span>✦</span><p>Upload a photo to start your try-on</p></div>
+            )}
+            {photoUrl && faceBounds ? (
+              <StylePreviewLayer
+                style={selectedStyle}
+                activeTab={activeTab}
+                faceBounds={faceBounds}
+                skinTone={skinTone}
+                showSpaGlow={activeTab === "spa"}
+                colorHex={selectedStyle.hex}
+              />
+            ) : null}
+            {photoUrl && pngOverlayOk ? (
+              <img className="ai-hairstyle-image" style={hairlineStyle} src={selectedStyle.png} alt={`${selectedStyle.name} overlay`} />
+            ) : null}
+            {photoUrl && !pngOverlayOk ? (
+              <img
+                className="ai-hairstyle-image ai-hairstyle-image-probe"
+                style={hairlineStyle}
+                src={selectedStyle.png}
+                alt=""
+                aria-hidden="true"
+                onLoad={() => setPngOverlayOk(true)}
+                onError={() => setPngOverlayOk(false)}
+              />
+            ) : null}
             <div className="ai-preview-shade" />
             <div className="ai-watermark">Glow Studio ✨<br /><span>HD Unlock on Booking</span></div>
             <div className="ai-diagonal-watermark" aria-hidden="true">{Array.from({ length: 6 }, (_, watermarkIndex) => <span key={watermarkIndex}>Glow Studio - Book to Unlock HD</span>)}</div>

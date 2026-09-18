@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { getBookings, updateBooking } from "../../api/salonApi";
 import { formatTime, formatBookingDate } from "../../utils/timeFormat";
+import { useToast } from "../../context/ToastContext";
 
 function Bookings() {
+  const { showToast } = useToast();
   const [bookings, setBookings] = useState([]);
   const [tryOnBooking, setTryOnBooking] = useState(() => {
     try {
@@ -16,7 +18,6 @@ function Bookings() {
   const [tryOnOverlayError, setTryOnOverlayError] = useState(false);
   const [filter, setFilter] = useState("all");
   const [copied, setCopied] = useState(false);
-  const [toast, setToast] = useState("");
 
   const fetchBookings = async () => {
     try {
@@ -32,6 +33,13 @@ function Bookings() {
 
   useEffect(() => {
     fetchBookings();
+    const timer = window.setInterval(fetchBookings, 5000);
+    const refresh = () => fetchBookings();
+    window.addEventListener("salon-changed", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("salon-changed", refresh);
+    };
   }, []);
 
   useEffect(() => {
@@ -88,11 +96,6 @@ function Bookings() {
       : [updated, ...stored];
     localStorage.setItem("glow_bookings", JSON.stringify(updatedStored));
     setTryOnBooking(updated);
-  };
-
-  const showToast = (message) => {
-    setToast(message);
-    window.setTimeout(() => setToast(""), 3500);
   };
 
   const handleConfirm = async (bookingId, paymentId) => {
@@ -174,7 +177,6 @@ function Bookings() {
           ))}
         </div>
       )}
-      {toast && <div className="admin-toast" role="status">{toast}</div>}
     </section>
   );
 }

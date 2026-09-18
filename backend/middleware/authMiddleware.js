@@ -21,7 +21,13 @@ export function authenticateToken(req, res, next) {
 
 export function signToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, name: user.name, role: user.role || "customer" },
+    {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role || "customer",
+      activeSalonId: user.activeSalonId || "",
+    },
     SECRET_KEY,
     { expiresIn: "7d" }
   );

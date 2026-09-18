@@ -1,3 +1,9 @@
+export function formatSalonHours(openTime, closeTime) {
+  const open = formatTime(openTime || "09:00");
+  const close = formatTime(closeTime || "21:00");
+  return `${open} – ${close}`;
+}
+
 export function formatTime(value) {
   const raw = String(value || "").trim();
   if (!raw) return "Time not set";

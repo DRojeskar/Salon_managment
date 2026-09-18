@@ -55,13 +55,14 @@ import appointmentsRoutes from "./routes/appointments.js";
 import bookingsRoutes from "./routes/bookings.js";
 import clientsRoutes from "./routes/clients.js";
 import aiRoutes from "./routes/ai.js";
+import salonsRoutes from "./routes/salons.js";
 import { connectDatabase } from "./db.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "12mb" }));
 
 // ✅ ADD THIS - Root route handler
 app.get("/", (req, res) => {
@@ -76,7 +77,9 @@ app.get("/", (req, res) => {
       slots: "/api/slots",
       appointments: "/api/appointments",
       bookings: "/api/bookings",
-      clients: "/api/clients"
+      clients: "/api/clients",
+      salons: "/api/salons",
+      salonDelete: "POST /api/salons/remove"
     }
   });
 });
@@ -88,6 +91,7 @@ app.use("/api/slots", slotsRoutes);
 app.use("/api/appointments", appointmentsRoutes);
 app.use("/api/bookings", bookingsRoutes);
 app.use("/api/clients", clientsRoutes);
+app.use("/api/salons", salonsRoutes);
 app.use("/api/ai", aiRoutes);
 
 app.get("/api/health", (req, res) => {

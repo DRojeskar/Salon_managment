@@ -337,7 +337,7 @@ async function readDb() {
     return JSON.parse(raw);
   } catch (error) {
     if (error.code === "ENOENT") {
-      const empty = { users: [], staff: [], services: [], slots: [], appointments: [], bookings: [] };
+      const empty = { users: [], salons: [], staff: [], services: [], slots: [], appointments: [], bookings: [] };
       await writeDb(empty);
       return empty;
     }
@@ -369,6 +369,23 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
     role: { type: String, default: "customer" },
+    salonIds: { type: [String], default: [] },
+    activeSalonId: { type: String, default: "" },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { timestamps: true }
+);
+
+const salonSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
+    phone: { type: String, default: "" },
+    address: { type: String, default: "" },
+    email: { type: String, default: "" },
+    openTime: { type: String, default: "09:00" },
+    closeTime: { type: String, default: "21:00" },
+    ownerId: { type: String, default: "" },
     createdAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
@@ -377,6 +394,7 @@ const userSchema = new mongoose.Schema(
 const staffSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
+    salonId: { type: String, default: "" },
     name: { type: String, required: true },
     role: { type: String, default: "Staff" },
     shift: { type: String, default: "" },
@@ -388,6 +406,7 @@ const staffSchema = new mongoose.Schema(
 const serviceSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
+    salonId: { type: String, default: "" },
     title: { type: String, required: true },
     price: { type: Number, default: 0 },
     duration: { type: Number, default: 0 },
@@ -399,6 +418,7 @@ const serviceSchema = new mongoose.Schema(
 const slotSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
+    salonId: { type: String, default: "" },
     day: { type: String, required: true },
     time: { type: String, required: true },
     status: { type: String, default: "Open" },
@@ -409,6 +429,7 @@ const slotSchema = new mongoose.Schema(
 const appointmentSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
+    salonId: { type: String, default: "" },
     client: { type: String, required: true },
     service: { type: String, required: true },
     time: { type: String, required: true },
@@ -421,6 +442,8 @@ const appointmentSchema = new mongoose.Schema(
 const bookingSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
+    salonId: { type: String, default: "" },
+    salonName: { type: String, default: "" },
     customerId: { type: String, default: "" },
     client: { type: String, required: true },
     service: { type: String, required: true },
@@ -448,6 +471,7 @@ const bookingSchema = new mongoose.Schema(
 
 const models = {
   users: mongoose.models.User || mongoose.model("User", userSchema),
+  salons: mongoose.models.Salon || mongoose.model("Salon", salonSchema),
   staff: mongoose.models.Staff || mongoose.model("Staff", staffSchema),
   services: mongoose.models.Service || mongoose.model("Service", serviceSchema),
   slots: mongoose.models.Slot || mongoose.model("Slot", slotSchema),
@@ -678,6 +702,42 @@ export async function saveUser(user) {
   db.users = [user, ...(db.users || [])];
   await writeDb(db);
   return user;
+}
+
+export async function findUserById(id) {
+  if (dbMode === "mongo") {
+    try {
+      const userDoc = await models.users.findOne({ id: String(id) }).lean();
+      return toPlainObject(userDoc);
+    } catch (error) {
+      console.error("Error finding user by id in MongoDB:", error.message);
+      return null;
+    }
+  }
+
+  const users = await getCollection("users");
+  return users.find((user) => String(user.id) === String(id)) || null;
+}
+
+export async function updateUser(id, updates) {
+  if (dbMode === "mongo") {
+    try {
+      const updated = await models.users.findOneAndUpdate(
+        { id: String(id) },
+        { $set: updates },
+        { new: true, runValidators: true }
+      ).lean();
+      return toPlainObject(updated);
+    } catch (error) {
+      console.error("Error updating user in MongoDB:", error.message);
+      return null;
+    }
+  }
+
+  const db = await readDb();
+  db.users = (db.users || []).map((user) => (String(user.id) === String(id) ? { ...user, ...updates } : user));
+  await writeDb(db);
+  return db.users.find((user) => String(user.id) === String(id)) || null;
 }
 
 export async function getNextId(name) {

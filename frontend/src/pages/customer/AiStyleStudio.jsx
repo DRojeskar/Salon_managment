@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getServices, getSlots, getStaff } from '../../api/salonApi';
+import { getAiRecommendation, getServices, getSlots, getStaff } from '../../api/salonApi';
+import StylePreviewLayer from '../../components/StylePreviewLayer';
+import { inferHexFromColorText, loadImageBoundsFromFile } from '../../utils/facePreview';
 
 const defaultForm = { faceShape: 'oval', skinTone: 'warm', service: '' };
-
-const AI_ENDPOINT = 'http://localhost:5000/api/ai/recommendation';
 
 function AiStyleStudio() {
   const navigate = useNavigate();
   const [form, setForm] = useState(defaultForm);
   const [photoUrl, setPhotoUrl] = useState('');
+  const [faceBounds, setFaceBounds] = useState(null);
   const [result, setResult] = useState(null);
   const [services, setServices] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -30,6 +31,8 @@ function AiStyleStudio() {
       .catch(() => setError('Live salon data load nahi ho paya.'));
   }, []);
 
+  useEffect(() => () => photoUrl && URL.revokeObjectURL(photoUrl), [photoUrl]);
+
   useEffect(() => {
     if (!result || secondsLeft <= 0) return undefined;
     const timer = window.setInterval(() => setSecondsLeft((current) => Math.max(0, current - 1)), 1000);
@@ -43,43 +46,95 @@ function AiStyleStudio() {
   const offerPrice = Math.round(Number(selectedService?.price || 0) * 0.9);
   const timerLabel = `${String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:${String(secondsLeft % 60).padStart(2, '0')}`;
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setLoading(true);
+  const previewStyle = useMemo(() => {
+    if (!result) return null;
+    const serviceLabel = String(form.service || '').toLowerCase();
+    const activeTab = serviceLabel.includes('color') ? 'hairColors' : serviceLabel.includes('beard') ? 'beardStyles' : serviceLabel.includes('spa') ? 'spa' : 'hairCuts';
+    return {
+      id: 'ai-recommendation',
+      name: result.hairstyle.split(' with ')[0].slice(0, 28),
+      hex: inferHexFromColorText(result.color),
+      activeTab,
+    };
+  }, [result, form.service]);
+
+  const skinToneLabel = useMemo(() => {
+    const map = {
+      fair: 'Fair',
+      light: 'Light',
+      medium: 'Medium',
+      tan: 'Tan',
+      deep: 'Deep',
+      dark: 'Dark',
+      warm: 'Medium',
+      cool: 'Light',
+      neutral: 'Medium',
+    };
+    return map[form.skinTone] || 'Medium';
+  }, [form.skinTone]);
+
+  const runRecommendation = useCallback(async (nextForm, { silent = false } = {}) => {
+    if (!silent) setLoading(true);
     setError('');
 
     try {
-      const response = await fetch(AI_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...form,
-          bookings: [], appointments: [], services, staff, slots,
-        }),
+      const response = await getAiRecommendation({
+        ...nextForm,
+        bookings: [],
+        appointments: [],
+        services,
+        staff,
+        slots,
       });
 
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Recommendation failed');
+      const data = response.data;
+      if (!data?.success || !data.styleRecommendation) {
+        throw new Error(data?.message || 'Recommendation failed');
       }
 
       setResult(data.styleRecommendation);
       setSecondsLeft(300);
     } catch (err) {
-      setError(err.message || 'Unable to generate recommendation');
+      setError(err.response?.data?.message || err.message || 'Unable to generate recommendation');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
+  }, [services, staff, slots]);
+
+  useEffect(() => {
+    if (!photoUrl || !form.service || services.length === 0) return undefined;
+    const timer = window.setTimeout(() => {
+      runRecommendation(form, { silent: true });
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [form.faceShape, form.skinTone, form.service, photoUrl, services.length, runRecommendation]);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!photoUrl) {
+      setError('Pehle apni photo upload karein.');
+      return;
+    }
+    await runRecommendation(form);
   };
 
-  const handlePhoto = (event) => {
+  const handlePhoto = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    setPhotoUrl(URL.createObjectURL(file));
+    setPhotoUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
+    });
     setResult(null);
     setSecondsLeft(300);
+    setError('');
+
+    try {
+      const bounds = await loadImageBoundsFromFile(file);
+      setFaceBounds(bounds);
+    } catch {
+      setFaceBounds({ left: 22, top: 8, width: 56, height: 58 });
+    }
   };
 
   const unlockAndBook = () => {
@@ -156,18 +211,40 @@ function AiStyleStudio() {
             </div>
 
             <div className="ai-actions">
-              <button type="submit" className="form-button compact" disabled={loading}>
-                {loading ? 'Analyzing...' : 'Get AI recommendation'}
+              <button type="submit" className="form-button compact" disabled={loading || !photoUrl}>
+                {loading ? 'Analyzing...' : result ? 'Refresh AI recommendation' : 'Get AI recommendation'}
               </button>
+              {photoUrl && !result && !loading && <span className="booking-context">Photo upload ho gayi — analysis auto chal rahi hai...</span>}
             </div>
           </form>
 
-          {error && <p style={{ color: '#fca5a5', marginTop: '12px' }}>{error}</p>}
+          {error && <p className="ai-error">{error}</p>}
         </section>
 
         <section className="ai-card">
           <h4>HD look preview</h4>
-          {photoUrl ? <div className="locked-try-on"><img src={photoUrl} alt="Uploaded customer preview" /><div className="locked-overlay"><span className="lock-icon">🔒</span><strong>Glow Studio ✨ - HD Unlock on Booking</strong><small>HD preview locked</small></div></div> : <p>Photo upload karne ke baad locked teaser yahan dikhega.</p>}
+          {photoUrl ? (
+            <div className={`locked-try-on ${result ? 'locked-try-on-live' : ''}`}>
+              <img src={photoUrl} alt="Uploaded customer preview" className={result ? 'ai-live-preview-photo' : ''} />
+              {previewStyle && faceBounds ? (
+                <StylePreviewLayer
+                  style={{ id: previewStyle.id, name: previewStyle.name, hex: previewStyle.hex }}
+                  activeTab={previewStyle.activeTab}
+                  faceBounds={faceBounds}
+                  skinTone={skinToneLabel}
+                  colorHex={previewStyle.hex}
+                  showSpaGlow={previewStyle.activeTab === 'spa'}
+                />
+              ) : null}
+              <div className="locked-overlay">
+                <span className="lock-icon">{result ? '✨' : '🔒'}</span>
+                <strong>{result ? 'Live AI preview (booking par HD unlock)' : 'Glow Studio ✨ - HD Unlock on Booking'}</strong>
+                <small>{result ? `${result.hairstyle} · ${result.color}` : 'HD preview locked'}</small>
+              </div>
+            </div>
+          ) : (
+            <p>Photo upload karne ke baad locked teaser yahan dikhega.</p>
+          )}
         </section>
       </div>
 

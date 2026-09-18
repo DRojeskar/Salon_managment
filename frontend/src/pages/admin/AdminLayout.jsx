@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useActiveSalonName } from "../../hooks/useActiveSalonName";
 
 const links = [
   { to: "/admin/dashboard", label: "Dashboard" },
@@ -13,6 +14,7 @@ const links = [
 
 function AdminLayout() {
   const navigate = useNavigate();
+  const salonName = useActiveSalonName("Your salon");
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -29,7 +31,7 @@ function AdminLayout() {
             <span className="brand-icon">✂</span>
             <div>
               <p className="eyebrow">Admin portal</p>
-              <h3>Glow Studio</h3>
+              <h3>{salonName}</h3>
             </div>
           </div>
 

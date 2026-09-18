@@ -61,7 +61,7 @@ function RootRedirect() {
   const token = localStorage.getItem("token");
   const role = getUserRole();
   if (!token) return <Navigate to="/login" replace />;
-  return <Navigate to={role === "admin" ? "/admin/dashboard" : "/customer/dashboard"} replace />;
+  return <Navigate to={role === "admin" || role === "superadmin" ? "/admin/dashboard" : "/customer/dashboard"} replace />;
 }
 
 function App() {
@@ -84,7 +84,7 @@ function App() {
           <Route index element={<Checkout />} />
         </Route>
 
-        <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><AdminLayout /></ProtectedRoute>}>
+        <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin", "superadmin"]}><AdminLayout /></ProtectedRoute>}>
           <Route index element={<Navigate replace to="dashboard" />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="staff" element={<Staff />} />

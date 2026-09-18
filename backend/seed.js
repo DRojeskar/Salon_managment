@@ -7,6 +7,24 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dbPath = path.join(__dirname, 'db.json');
 
+const demoSalonId = 'salon-glow-demo';
+
+const salons = [
+  {
+    id: demoSalonId,
+    name: 'Glow Studio',
+    phone: '+919876543210',
+    address: 'MG Road, Jaipur',
+    email: 'hello@glowstudio.com',
+    openTime: '09:00',
+    closeTime: '21:00',
+    ownerId: 'user-1',
+    createdAt: new Date().toISOString(),
+  },
+];
+
+const withSalon = (item) => ({ ...item, salonId: demoSalonId });
+
 const staff = [
   { id: 'staff-1', name: 'Sameer', role: 'Senior Stylist', shift: 'Morning', status: 'Available' },
   { id: 'staff-2', name: 'Aisha', role: 'Color Expert', shift: 'Afternoon', status: 'Busy' },
@@ -77,7 +95,7 @@ const bookings = [
 ];
 
 const users = [
-  { id: 'user-1', name: 'Admin User', email: 'admin@glowstudio.com', password: 'admin123', role: 'admin', phone: '+919800000001' },
+  { id: 'user-1', name: 'Admin User', email: 'admin@glowstudio.com', password: 'admin123', role: 'admin', phone: '+919800000001', salonIds: [demoSalonId], activeSalonId: demoSalonId },
   { id: 'user-2', name: 'Deepesh', email: 'deepesh@gmail.com', password: 'user123', role: 'customer', phone: '+919800000002' },
   { id: 'user-3', name: 'Riya', email: 'riya@gmail.com', password: 'user123', role: 'customer', phone: '+919800000003' },
   { id: 'user-4', name: 'Aman', email: 'aman@gmail.com', password: 'user123', role: 'customer', phone: '+919800000004' },
@@ -94,11 +112,12 @@ const seedData = {
     ...user,
     password: await bcrypt.hash(user.password, 10),
   }))),
-  staff,
-  services,
-  slots,
-  appointments,
-  bookings,
+  salons,
+  staff: staff.map(withSalon),
+  services: services.map(withSalon),
+  slots: slots.map(withSalon),
+  appointments: appointments.map(withSalon),
+  bookings: bookings.map((item) => withSalon({ ...item, salonName: 'Glow Studio' })),
 };
 
 async function main() {

@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { UserModel } from "../models/userModel.js";
 import { signToken } from "../middleware/authMiddleware.js";
+import { createItem, getCollection, updateUser, findUserById } from "../db.js";
 
 export async function register(req, res, next) {
   try {
@@ -23,7 +24,11 @@ export async function register(req, res, next) {
       return res.status(403).json({ success: false, message: "Admin access requires a valid secret" });
     }
 
-    const normalizedRole = isAdminRequest ? "admin" : requestedRole === "staff" ? "staff" : "customer";
+    const superadminEmail = String(process.env.SUPERADMIN_EMAIL || "").toLowerCase();
+    let normalizedRole = isAdminRequest ? "admin" : requestedRole === "staff" ? "staff" : "customer";
+    if (superadminEmail && String(email).toLowerCase() === superadminEmail) {
+      normalizedRole = "superadmin";
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = {
@@ -33,13 +38,52 @@ export async function register(req, res, next) {
       email,
       password: hashedPassword,
       role: normalizedRole,
+      salonIds: [],
+      activeSalonId: "",
       createdAt: new Date().toISOString(),
     };
 
     await UserModel.save(newUser);
+
+    let salon = null;
+    if (normalizedRole === "admin") {
+      const {
+        salonName,
+        salonPhone,
+        salonAddress,
+        openTime,
+        closeTime,
+      } = req.body || {};
+
+      salon = await createItem("salons", {
+        name: String(salonName || `${name} Salon`).trim(),
+        phone: String(salonPhone || phone || "").trim(),
+        address: String(salonAddress || "").trim(),
+        email: String(email).trim(),
+        openTime: openTime || "09:00",
+        closeTime: closeTime || "21:00",
+        ownerId: newUser.id,
+        createdAt: new Date().toISOString(),
+      });
+
+      await updateUser(newUser.id, {
+        salonIds: [salon.id],
+        activeSalonId: salon.id,
+      });
+      newUser.salonIds = [salon.id];
+      newUser.activeSalonId = salon.id;
+    }
+
     const token = signToken(newUser);
-    const responseUser = { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role };
-    res.json({ success: true, token, user: responseUser });
+    const responseUser = {
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      role: newUser.role,
+      salonIds: newUser.salonIds || [],
+      activeSalonId: newUser.activeSalonId || "",
+    };
+    res.json({ success: true, token, user: responseUser, salon, activeSalonId: newUser.activeSalonId || "" });
   } catch (error) {
     next(error);
   }
@@ -62,9 +106,29 @@ export async function login(req, res, next) {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
-    const token = signToken(user);
-    const responseUser = { id: user.id, name: user.name, email: user.email, role: user.role };
-    res.json({ success: true, token, user: responseUser });
+    const fullUser = await findUserById(user.id);
+    const allSalons = await getCollection("salons");
+    const role = fullUser?.role || user.role;
+    const salons = role === "admin"
+      ? allSalons.filter((item) => item.ownerId === user.id)
+      : allSalons;
+
+    const token = signToken(fullUser || user);
+    const responseUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role,
+      salonIds: fullUser?.salonIds || [],
+      activeSalonId: fullUser?.activeSalonId || salons[0]?.id || "",
+    };
+    res.json({
+      success: true,
+      token,
+      user: responseUser,
+      salons,
+      activeSalonId: responseUser.activeSalonId,
+    });
   } catch (error) {
     next(error);
   }

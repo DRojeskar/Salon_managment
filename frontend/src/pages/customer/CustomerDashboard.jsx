@@ -1,20 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createBooking, getBookings, getServices } from "../../api/salonApi";
-import { formatBookingDate } from "../../utils/timeFormat";
+import { formatBookingDate, formatSalonHours } from "../../utils/timeFormat";
+import { getActiveSalon, getActiveSalonId } from "../../utils/salonData";
+import SalonSwitcher from "../../components/SalonSwitcher";
+import { useToast } from "../../context/ToastContext";
 
 const emptyForm = {
   client: "",
   service: "",
+  serviceId: "",
   staff: "",
   source: "normal",
   date: "",
   time: "",
 };
 
+function serviceLabel(service) {
+  return String(service?.title || service?.name || "").trim();
+}
+
 function CustomerDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const [activeSalon, setActiveSalonState] = useState(() => getActiveSalon());
   const storedUser = JSON.parse(localStorage.getItem("user") || "null");
   const handoffBooking = location.state?.booking?.source === "ai_style_studio" ? location.state.booking : {};
   const [services, setServices] = useState([]);
@@ -29,6 +39,18 @@ function CustomerDashboard() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const refreshSalon = () => setActiveSalonState(getActiveSalon());
+    window.addEventListener("salon-changed", refreshSalon);
+    return () => window.removeEventListener("salon-changed", refreshSalon);
+  }, []);
+
+  const handleSalonChange = () => {
+    setActiveSalonState(getActiveSalon());
+    setFormData((prev) => ({ ...prev, service: "", serviceId: "" }));
+    fetchData();
+  };
 
   useEffect(() => {
     const booking = location.state?.booking;
@@ -50,6 +72,21 @@ function CustomerDashboard() {
       const nextServices = servicesRes.data.services || [];
       setServices(nextServices);
       setBookings(bookingsRes.data.bookings || []);
+      setFormData((prev) => {
+        const matched = nextServices.find(
+          (item) =>
+            String(item.id) === String(prev.serviceId)
+            || serviceLabel(item).toLowerCase() === String(prev.service || "").trim().toLowerCase()
+        );
+        if (!matched) {
+          return { ...prev, service: "", serviceId: "" };
+        }
+        return {
+          ...prev,
+          service: serviceLabel(matched),
+          serviceId: matched.id,
+        };
+      });
 
     } catch (error) {
       console.error("Failed to load customer dashboard data", error);
@@ -60,30 +97,52 @@ function CustomerDashboard() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const selectedService = (formData.service || services[0]?.title || "").trim();
+    const salonId = String(activeSalon?.id || getActiveSalonId() || "").trim();
+    const matchedService = services.find(
+      (item) =>
+        String(item.id) === String(formData.serviceId)
+        || serviceLabel(item).toLowerCase() === String(formData.service || "").trim().toLowerCase()
+    );
+    const selectedService = serviceLabel(matchedService);
+
+    if (!salonId) {
+      showToast("Please select a salon first.", "error");
+      return;
+    }
+
+    localStorage.setItem("glow_active_salon_id", salonId);
 
     if (!formData.client.trim() || !selectedService || !formData.date.trim() || !formData.time.trim()) {
-      alert("Please fill in your name, select a service, and choose a date/time.");
+      showToast("Please fill in your name, select a service, and choose a date/time.", "error");
+      return;
+    }
+
+    if (!matchedService) {
+      showToast("Please pick a service from the list for this salon.", "error");
       return;
     }
 
     const booking = {
       client: formData.client,
       service: selectedService,
+      serviceId: matchedService.id,
       staff: formData.staff,
       source: formData.source || "normal",
       date: `${formData.date} • ${formData.time}`,
       status: "Pending",
+      salonId,
+      salonName: activeSalon?.name || "Glow Studio",
     };
 
     try {
       await createBooking(booking);
+      showToast("Booking created successfully.");
       setFormData(emptyForm);
       navigate("/customer/dashboard", { replace: true, state: null });
       await fetchData();
     } catch (error) {
       console.error("Failed to create booking", error);
-      alert(error.response?.data?.message || "Booking failed");
+      showToast(error.response?.data?.message || "Booking failed", "error");
     }
   };
 
@@ -102,7 +161,7 @@ function CustomerDashboard() {
         <div>
           <p className="eyebrow">Customer portal</p>
           <h3>Book the service you love.</h3>
-          <p>Choose a service, pick a slot, and manage your appointments with ease.</p>
+          <p>{activeSalon?.name || "Glow Studio"} • {formatSalonHours(activeSalon?.openTime, activeSalon?.closeTime)}</p>
         </div>
         <div className="hero-chip">Fresh availability</div>
       </section>
@@ -112,13 +171,28 @@ function CustomerDashboard() {
           <h4>Book a service</h4>
         </div>
 
+        <SalonSwitcher onChange={handleSalonChange} label="Book at salon" />
+
         <form className="inline-form" autoComplete="off" onSubmit={handleSubmit}>
           <div className="form-row">
             <input className="form-input" name="booking-client" autoComplete="off" placeholder="Your name" value={formData.client} onChange={(e) => setFormData((prev) => ({ ...prev, client: e.target.value }))} required />
-            <select className="form-input" value={formData.service} onChange={(e) => setFormData((prev) => ({ ...prev, service: e.target.value }))} required>
+            <select
+              className="form-input"
+              value={formData.service}
+              onChange={(e) => {
+                const nextTitle = e.target.value;
+                const picked = services.find((item) => serviceLabel(item) === nextTitle);
+                setFormData((prev) => ({
+                  ...prev,
+                  service: nextTitle,
+                  serviceId: picked?.id || "",
+                }));
+              }}
+              required
+            >
               <option value="" disabled>Select a service</option>
               {services.map((service) => (
-                <option key={service.id} value={service.title}>{service.title}</option>
+                <option key={service.id} value={serviceLabel(service)}>{serviceLabel(service)}</option>
               ))}
             </select>
           </div>
@@ -185,7 +259,7 @@ function CustomerDashboard() {
               <div key={item.id} className="list-item">
                 <div>
                   <strong>{item.service}</strong>
-                  <p>{formatBookingDate(item.date)}</p>
+                  <p>{formatBookingDate(item.date)} {item.salonName ? `• ${item.salonName}` : ""}</p>
                 </div>
                 <span className="status-pill">{item.status}</span>
               </div>

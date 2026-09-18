@@ -9,8 +9,25 @@ API.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  const activeSalonId = localStorage.getItem("glow_active_salon_id");
+  if (activeSalonId) {
+    config.headers["x-salon-id"] = activeSalonId;
+  }
+
   return config;
 });
+
+export const getSalons = () => API.get("/salons");
+export const createSalon = (data) => API.post("/salons", data);
+export const setActiveSalon = (salonId) => API.patch("/salons/active", { salonId });
+export const deleteSalon = (salonId) => {
+  const id = String(salonId || "").trim();
+  if (!id) {
+    return Promise.reject(new Error("Salon id is missing"));
+  }
+  return API.post("/salons/remove", { salonId: id });
+};
 
 export const getStaff = () => API.get("/staff");
 export const createStaff = (data) => API.post("/staff", data);
@@ -39,5 +56,7 @@ export const deleteBooking = (id) => API.delete(`/bookings/${id}`);
 
 export const getClients = () => API.get("/clients");
 export const chatWithGlow = (message) => API.post("/ai/chat", { message });
+
+export const getAiRecommendation = (payload) => API.post("/ai/recommendation", payload);
 
 export default API;
