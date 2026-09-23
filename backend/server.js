@@ -107,8 +107,14 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ success: false, message: err.message || "Server error" });
 });
 
-connectDatabase().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Salon backend listening on http://localhost:${PORT}`);
+// Last ke 4 lines change kar de
+connectDatabase()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Salon backend LIVE on ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("🔥 FAILED TO START - DB not connected:", err.message);
+    process.exit(1); // Render ko pata chalega fail hua hai, wo restart karega
   });
-});
