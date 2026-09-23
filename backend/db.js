@@ -211,6 +211,7 @@ export async function connectDatabase() {
   for (let i = 1; i <= 5; i++) {
     try {
       await mongoose.connect(dbUrl, options);
+          dbMode = "mongo";
       console.log("✅ MongoDB Atlas connected!");
       console.log(`📊 DB: ${mongoose.connection.db.databaseName}`);
       return true;
